@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>See It. Build It. Build It Better.</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --grid: #475569;
+      --cell: #0b1220;
+      --shadow: 0 10px 30px rgba(0,0,0,0.28);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container { max-width: 1240px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: rgba(17,24,39,0.94);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    h1, h2, h3, h4, p { margin-top: 0; }
+    strong { color: #fff; }
+    .hidden { display: none !important; }
+
+    .hero { text-align: center; padding: 28px; }
+    .hero h1 { font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 10px; }
+    .hero p {
+      color: var(--muted);
+      max-width: 860px;
+      margin: 0 auto 14px;
+      line-height: 1.55;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #2563eb); color: white; }
+    .btn-secondary { background: #334155; color: white; }
+    .btn-success { background: linear-gradient(135deg, var(--accent-2), #16a34a); color: white; }
+    .btn-warn { background: linear-gradient(135deg, var(--warn), #ea580c); color: white; }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .pill {
+      background: #0b1220;
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .grid-wrap, .side-panel {
+      background: rgba(15,23,42,0.62);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .grid-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--muted);
+    }
+
+    .board-shell {
+      display: grid;
+      grid-template-columns: 30px repeat(3, minmax(78px, 1fr));
+      grid-template-rows: 28px repeat(3, minmax(78px, 1fr));
+      gap: 8px;
+      width: 100%;
+      max-width: 470px;
+      margin: 0 auto;
+      align-items: stretch;
+      justify-items: stretch;
+    }
+
+    .axis-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.95rem;
+      user-select: none;
+    }
+
+    .corner-spacer { background: transparent; }
+
+    .cell {
+      background: var(--cell);
+      border: 2px dashed var(--grid);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.1s ease, background 0.15s ease;
+      user-select: none;
+      min-height: 88px;
+      overflow: hidden;
+    }
+    .cell:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .cell.correct { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+    .cell.incorrect { border-color: #ef4444; background: rgba(239,68,68,0.08); }
+
+    .coord-badge {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .clear-cell-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      border: 0;
+      font-size: 0.8rem;
+      font-weight: 800;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      background: rgba(239,68,68,0.95);
+      color: white;
+      cursor: pointer;
+    }
+    .clear-cell-btn:hover { transform: none; opacity: 0.92; }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(84px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .piece-btn {
+      background: #0b1220;
+      border: 2px solid #334155;
+      border-radius: 14px;
+      padding: 10px;
+      min-height: 88px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+    .piece-btn.selected-piece {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+    }
+
+    .piece-name {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .shape { width: 42px; height: 42px; display: inline-block; }
+    .shape svg { width: 100%; height: 100%; display: block; }
+
+    .instructions {
+      background: #0b1220;
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px;
+      padding: 14px 16px;
+      line-height: 1.55;
+    }
+    .instructions ol { padding-left: 20px; margin-bottom: 0; }
+    .instructions li { margin-bottom: 8px; }
+
+    .countdown {
+      font-size: clamp(3rem, 10vw, 5rem);
+      font-weight: 800;
+      text-align: center;
+      margin: 18px 0;
+      color: var(--accent);
+    }
+
+    .pattern-preview {
+      display: flex;
+      justify-content: center;
+      margin-top: 18px;
+      margin-bottom: 12px;
+    }
+
+    .subtle {
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.55;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .metric {
+      background: #0b1220;
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 16px;
+      padding: 18px;
+      text-align: center;
+    }
+    .metric .label { color: var(--muted); font-size: 0.95rem; margin-bottom: 6px; }
+    .metric .value { font-size: 1.7rem; font-weight: 800; }
+
+    .takeaway {
+      margin-top: 20px;
+      background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(56,189,248,0.15));
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 16px;
+      padding: 18px;
+      line-height: 1.6;
+    }
+
+    .tiny { font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
+
+    .leaderboard {
+      margin-top: 20px;
+      background: rgba(15,23,42,0.62);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.95rem;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(148,163,184,0.12);
+      text-align: left;
+    }
+    th { color: var(--muted); font-weight: 700; }
+    td { color: #fff; }
+
+    .empty-state { padding: 12px 0 6px; color: var(--muted); }
+    .footer-note { margin-top: 18px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+    .peek-note { margin-top: 10px; color: #fcd34d; font-size: 0.9rem; font-weight: 600; }
+
+    .submit-box {
+      margin-top: 20px;
+      background: rgba(15,23,42,0.62);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .submit-box input {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.25);
+      background: #0b1220;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .submit-status {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .instruction-piece {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .instruction-piece .shape {
+      width: 20px;
+      height: 20px;
+    }
+
+    .section-title {
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .board-shell { max-width: 420px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section id="screen-start" class="card hero">
+      <h1>See It. Build It. Build It Better.</h1>
+      <p>
+        A short demo about why clear instructions improve speed, consistency, and confidence. In Round 1, you briefly see a finished pattern and rebuild it from memory. In Round 2, you rebuild a similar-difficulty pattern using concise coordinate-based instructions.
+      </p>
+      <div class="btn-row">
+        <button class="btn-primary" id="startBtn">Start Demo</button>
+        <button class="btn-secondary" id="refreshLeaderboardBtn">Refresh Company Stats</button>
+      </div>
+    </section>
+
+    <div id="homeDashboard">
+    <section class="card">
+        <h2 class="section-title">Company-Wide Stats</h2>
+        <div class="stats-grid" id="companyStatsStart">
+          <div class="metric"><div class="label">Round 1 Avg Time</div><div class="value" id="startAvgTime1">--</div></div>
+          <div class="metric"><div class="label">Round 1 Avg Accuracy</div><div class="value" id="startAvgAcc1">--</div></div>
+          <div class="metric"><div class="label">Round 2 Avg Time</div><div class="value" id="startAvgTime2">--</div></div>
+          <div class="metric"><div class="label">Round 2 Avg Accuracy</div><div class="value" id="startAvgAcc2">--</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Company Leaderboard</h2>
+        <div id="leaderboardWrapStart"></div>
+      </section>
+    </div>
+
+    <section id="screen-preview1" class="card hidden">
+      <div class="status-bar">
+        <div class="pill">Round 1 of 2</div>
+        <div class="pill">Memorize the completed pattern</div>
+        <div class="pill">Randomized puzzle</div>
+      </div>
+      <h2>Round 1: Build from memory</h2>
+      <p class="subtle">You will see the completed pattern for <strong>5 seconds</strong>. Some pieces are intentionally similar, so distinguishing them matters.</p>
+      <div class="pattern-preview"><div id="previewGrid1"></div></div>
+      <div class="countdown" id="countdown1">5</div>
+    </section>
+
+    <section id="screen-round1" class="card hidden">
+      <div class="status-bar">
+        <div class="pill">Round 1 of 2</div>
+        <div class="pill">Mode: Memory only</div>
+        <div class="pill">Time: <span id="timer1">0.0</span>s</div>
+        <div class="pill">Penalties: <span id="penalty1">0</span>s</div>
+      </div>
+      <div class="layout">
+        <div class="grid-wrap">
+          <div class="grid-title">
+            <strong>Build the pattern</strong>
+            <span class="tiny">Select a piece, then click a square to place it. Use × on a cell to clear just that cell.</span>
+          </div>
+          <div id="playGrid1"></div>
+        </div>
+        <div class="side-panel">
+          <h3>Pieces</h3>
+          <p class="tiny">Pieces intentionally overlap in color and shape. This mirrors situations where parts or steps look similar without structured guidance.</p>
+          <div id="palette1" class="palette"></div>
+          <div class="btn-row" style="justify-content:flex-start; margin-top:16px;">
+            <button class="btn-secondary" id="deselect1Btn">Deselect Piece</button>
+            <button class="btn-secondary" id="clear1Btn">Clear Grid</button>
+            <button class="btn-warn" id="peekBtn">Look at Solution (+5s)</button>
+            <button class="btn-success" id="submit1Btn">Submit Round 1</button>
+          </div>
+          <div class="peek-note" id="peekNote">Each time you open the solution, +5 seconds is added.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-peek" class="card hidden">
+      <div class="status-bar">
+        <div class="pill">Round 1 reference</div>
+        <div class="pill">Penalty already applied</div>
+        <div class="pill">Return when ready</div>
+      </div>
+      <h2>Solution Reference</h2>
+      <p class="subtle">Use this as a reference, then return to continue building from memory.</p>
+      <div class="pattern-preview"><div id="peekGrid"></div></div>
+      <div class="btn-row">
+        <button class="btn-primary" id="returnFromPeekBtn">Return to Puzzle</button>
+      </div>
+    </section>
+
+    <section id="screen-preview2" class="card hidden">
+      <div class="status-bar">
+        <div class="pill">Round 2 of 2</div>
+        <div class="pill">Now with concise instructions</div>
+        <div class="pill">Same difficulty profile</div>
+      </div>
+      <h2>Round 2: Build with instructions</h2>
+      <p class="subtle">This round uses a different randomized arrangement with the same number of pieces and the same level of visual similarity — but now you have guidance.</p>
+      <div class="btn-row"><button class="btn-primary" id="beginRound2Btn">Begin Round 2</button></div>
+    </section>
+
+    <section id="screen-round2" class="card hidden">
+      <div class="status-bar">
+        <div class="pill">Round 2 of 2</div>
+        <div class="pill">Mode: With instructions</div>
+        <div class="pill">Time: <span id="timer2">0.0</span>s</div>
+        <div class="pill">Penalties: <span id="penalty2">0</span>s</div>
+      </div>
+      <div class="layout">
+        <div class="grid-wrap">
+          <div class="grid-title">
+            <strong>Build the pattern</strong>
+            <span class="tiny">Use the coordinate instructions to place each piece.</span>
+          </div>
+          <div id="playGrid2"></div>
+        </div>
+        <div class="side-panel">
+          <h3>Instructions</h3>
+          <div class="instructions"><ol id="instructionList"></ol></div>
+          <h3 style="margin-top:16px;">Pieces</h3>
+          <div id="palette2" class="palette"></div>
+          <div class="btn-row" style="justify-content:flex-start; margin-top:16px;">
+            <button class="btn-secondary" id="deselect2Btn">Deselect Piece</button>
+            <button class="btn-secondary" id="clear2Btn">Clear Grid</button>
+            <button class="btn-success" id="submit2Btn">Finish & Review Results</button>
+          </div>
+          <div class="peek-note">Wrong pieces are penalized when you submit.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screen-results" class="card hidden">
+      <h2>Your Results</h2>
+      <p class="subtle">A simple example of how structured instructions can reduce ambiguity and improve repeatability.</p>
+
+      <section class="card" style="background: rgba(15,23,42,0.38); margin-top: 20px;">
+        <h3 class="section-title">Company-Wide Stats</h3>
+        <div class="stats-grid">
+          <div class="metric"><div class="label">Round 1 Avg Time</div><div class="value" id="resultsAvgTime1">--</div></div>
+          <div class="metric"><div class="label">Round 1 Avg Accuracy</div><div class="value" id="resultsAvgAcc1">--</div></div>
+          <div class="metric"><div class="label">Round 2 Avg Time</div><div class="value" id="resultsAvgTime2">--</div></div>
+          <div class="metric"><div class="label">Round 2 Avg Accuracy</div><div class="value" id="resultsAvgAcc2">--</div></div>
+        </div>
+      </section>
+
+      <section class="leaderboard">
+        <h3>Company Leaderboard</h3>
+        <div id="leaderboardWrapResults"></div>
+      </section>
+
+      <section class="card" style="background: rgba(15,23,42,0.38); margin-top: 20px;">
+        <h3 class="section-title">Your Stats This Round</h3>
+        <div class="stats-grid">
+          <div class="metric"><div class="label">Your Round 1 Time</div><div class="value" id="resTime1">--</div></div>
+          <div class="metric"><div class="label">Your Round 1 Accuracy</div><div class="value" id="resAccuracy1">--</div></div>
+          <div class="metric"><div class="label">Your Round 2 Time</div><div class="value" id="resTime2">--</div></div>
+          <div class="metric"><div class="label">Your Round 2 Accuracy</div><div class="value" id="resAccuracy2">--</div></div>
+        </div>
+        <div class="stats-grid">
+          <div class="metric"><div class="label">Time Difference</div><div class="value" id="resImprovementTime">--</div></div>
+          <div class="metric"><div class="label">Accuracy Difference</div><div class="value" id="resImprovementAccuracy">--</div></div>
+          <div class="metric"><div class="label">Attempt Score</div><div class="value" id="resScore">--</div></div>
+          <div class="metric"><div class="label">Penalty Summary</div><div class="value" id="resPenaltySummary">--</div></div>
+        </div>
+      </section>
+
+      <div class="takeaway" id="takeawayText"></div>
+
+      <div class="submit-box">
+        <h3>Submit to Company Leaderboard</h3>
+        <p class="tiny">Enter your name or initials, then submit your score.</p>
+        <input type="text" id="playerNameInput" maxlength="20" placeholder="Enter your name or initials" />
+        <div class="btn-row" style="justify-content:flex-start;">
+          <button class="btn-primary" id="submitLeaderboardBtn">Submit Score</button>
+        </div>
+        <div class="submit-status" id="submitStatus">Your score has not been submitted yet.</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-warn" id="restartBtn">Try Another Random Puzzle</button>
+        <button class="btn-secondary" id="backHomeBtn">Back to Start</button>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zfvdibouhbdvabmilkkv.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_GA1mfi08bDumhwbltwbtZg_VAhT5jSL';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const GRID_SIZE = 9;
+    const PUZZLE_PIECE_COUNT = 6;
+    const PREVIEW_SECONDS = 5;
+    const WRONG_PIECE_PENALTY_SECONDS = 10;
+    const LOOK_PENALTY_SECONDS = 5;
+
+    const pieces = [
+      { id: 'red-square', name: 'Red Square', color: '#ef4444', shape: 'square' },
+      { id: 'red-triangle', name: 'Red Triangle', color: '#ef4444', shape: 'triangle' },
+      { id: 'red-circle', name: 'Red Circle', color: '#ef4444', shape: 'circle' },
+      { id: 'blue-square', name: 'Blue Square', color: '#3b82f6', shape: 'square' },
+      { id: 'green-square', name: 'Green Square', color: '#22c55e', shape: 'square' },
+      { id: 'yellow-star', name: 'Yellow Star', color: '#facc15', shape: 'star' }
+    ];
+
+    const columns = ['A', 'B', 'C'];
+    const rows = ['1', '2', '3'];
+
+    const screens = {
+      start: document.getElementById('screen-start'),
+      preview1: document.getElementById('screen-preview1'),
+      round1: document.getElementById('screen-round1'),
+      peek: document.getElementById('screen-peek'),
+      preview2: document.getElementById('screen-preview2'),
+      round2: document.getElementById('screen-round2'),
+      results: document.getElementById('screen-results')
+    };
+
+    const state = {
+      selectedPiece1: null,
+      selectedPiece2: null,
+      placed1: {},
+      placed2: {},
+      timer1: null,
+      timer2: null,
+      startTime1: null,
+      startTime2: null,
+      elapsed1Raw: 0,
+      elapsed2Raw: 0,
+      penalty1: 0,
+      penalty2: 0,
+      accuracy1: 0,
+      accuracy2: 0,
+      wrong1: 0,
+      wrong2: 0,
+      round1Target: {},
+      round2Target: {},
+      lastScore: 0,
+      round1PausedForPeek: false,
+      scoreSubmitted: false
+    };
+
+    function showScreen(key) {
+      Object.values(screens).forEach(el => el.classList.add('hidden'));
+      screens[key].classList.remove('hidden');
+
+      const homeDashboard = document.getElementById('homeDashboard');
+      if (homeDashboard) {
+        if (key === 'start') {
+          homeDashboard.classList.remove('hidden');
+        } else {
+          homeDashboard.classList.add('hidden');
+        }
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function getRandomPositions(count) {
+      const positions = shuffleArray(Array.from({ length: GRID_SIZE }, (_, i) => i));
+      return positions.slice(0, count).sort((a, b) => a - b);
+    }
+
+    function generatePuzzleLayout() {
+      const positions = getRandomPositions(PUZZLE_PIECE_COUNT);
+      const layout = {};
+      positions.forEach((pos, idx) => {
+        layout[pos] = pieces[idx].id;
+      });
+      return layout;
+    }
+
+    function generateRoundPair() {
+      let layout1 = generatePuzzleLayout();
+      let layout2 = generatePuzzleLayout();
+      while (JSON.stringify(layout1) === JSON.stringify(layout2)) {
+        layout2 = generatePuzzleLayout();
+      }
+      state.round1Target = layout1;
+      state.round2Target = layout2;
+    }
+
+    function shapeSVG(piece) {
+      const c = piece.color;
+      if (piece.shape === 'square') return `<svg viewBox="0 0 100 100"><rect x="18" y="18" width="64" height="64" rx="8" fill="${c}" /></svg>`;
+      if (piece.shape === 'triangle') return `<svg viewBox="0 0 100 100"><polygon points="50,15 85,80 15,80" fill="${c}" /></svg>`;
+      if (piece.shape === 'circle') return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="32" fill="${c}" /></svg>`;
+      if (piece.shape === 'star') return `<svg viewBox="0 0 100 100"><polygon fill="${c}" points="50,10 61,37 90,37 66,55 75,84 50,67 25,84 34,55 10,37 39,37" /></svg>`;
+      return '';
+    }
+
+    function smallShapeSVG(piece) {
+      return `<span class="shape">${shapeSVG(piece)}</span>`;
+    }
+
+    function getPieceById(id) {
+      return pieces.find(p => p.id === id);
+    }
+
+    function indexToCoord(index) {
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      return `${columns[col]}${rows[row]}`;
+    }
+
+    function buildBoardShell(containerId, placedMap = {}, interactive = false, round = 1, targetMap = null, showTarget = false) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      const shell = document.createElement('div');
+      shell.className = 'board-shell';
+
+      const spacer = document.createElement('div');
+      spacer.className = 'corner-spacer';
+      shell.appendChild(spacer);
+
+      columns.forEach(col => {
+        const label = document.createElement('div');
+        label.className = 'axis-label';
+        label.textContent = col;
+        shell.appendChild(label);
+      });
+
+      for (let r = 0; r < 3; r++) {
+        const rowLabel = document.createElement('div');
+        rowLabel.className = 'axis-label';
+        rowLabel.textContent = rows[r];
+        shell.appendChild(rowLabel);
+
+        for (let c = 0; c < 3; c++) {
+          const i = r * 3 + c;
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.index = i;
+
+          const coordBadge = document.createElement('div');
+          coordBadge.className = 'coord-badge';
+          coordBadge.textContent = indexToCoord(i);
+          cell.appendChild(coordBadge);
+
+          const pieceId = showTarget ? targetMap?.[i] : placedMap?.[i];
+          if (pieceId) {
+            const piece = getPieceById(pieceId);
+            const pieceWrap = document.createElement('span');
+            pieceWrap.className = 'shape';
+            pieceWrap.innerHTML = shapeSVG(piece);
+            cell.appendChild(pieceWrap);
+          }
+
+          if (interactive) {
+            cell.addEventListener('click', () => handleCellClick(round, i));
+            if (placedMap?.[i]) {
+              const clearBtn = document.createElement('button');
+              clearBtn.className = 'clear-cell-btn';
+              clearBtn.type = 'button';
+              clearBtn.textContent = '×';
+              clearBtn.title = 'Clear this cell';
+              clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                clearSingleCell(round, i);
+              });
+              cell.appendChild(clearBtn);
+            }
+          }
+
+          shell.appendChild(cell);
+        }
+      }
+      container.appendChild(shell);
+    }
+
+    function renderPalette(containerId, round) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      pieces.forEach(piece => {
+        const btn = document.createElement('button');
+        btn.className = 'piece-btn';
+        btn.type = 'button';
+        btn.dataset.pieceId = piece.id;
+        btn.innerHTML = `
+          <span class="shape">${shapeSVG(piece)}</span>
+          <span class="piece-name">${piece.name}</span>
+        `;
+        btn.addEventListener('click', () => selectPiece(round, piece.id));
+        container.appendChild(btn);
+      });
+      refreshPaletteSelection(round);
+    }
+
+    function selectPiece(round, pieceId) {
+      if (round === 1) state.selectedPiece1 = pieceId;
+      if (round === 2) state.selectedPiece2 = pieceId;
+      refreshPaletteSelection(round);
+    }
+
+    function deselectPiece(round) {
+      if (round === 1) state.selectedPiece1 = null;
+      if (round === 2) state.selectedPiece2 = null;
+      refreshPaletteSelection(round);
+    }
+
+    function refreshPaletteSelection(round) {
+      const container = document.getElementById(round === 1 ? 'palette1' : 'palette2');
+      const selected = round === 1 ? state.selectedPiece1 : state.selectedPiece2;
+      Array.from(container.querySelectorAll('.piece-btn')).forEach(btn => {
+        btn.classList.toggle('selected-piece', btn.dataset.pieceId === selected);
+      });
+    }
+
+    function handleCellClick(round, index) {
+      const selected = round === 1 ? state.selectedPiece1 : state.selectedPiece2;
+      const placed = round === 1 ? state.placed1 : state.placed2;
+      const gridId = round === 1 ? 'playGrid1' : 'playGrid2';
+
+      if (!selected) {
+        if (placed[index]) {
+          delete placed[index];
+          buildBoardShell(gridId, placed, true, round);
+        } else {
+          alert('Select a piece first, or click × on a filled cell to clear it.');
+        }
+        return;
+      }
+
+      placed[index] = selected;
+      buildBoardShell(gridId, placed, true, round);
+    }
+
+    function clearSingleCell(round, index) {
+      const placed = round === 1 ? state.placed1 : state.placed2;
+      const gridId = round === 1 ? 'playGrid1' : 'playGrid2';
+      delete placed[index];
+      buildBoardShell(gridId, placed, true, round);
+    }
+
+    function clearRound(round) {
+      if (round === 1) {
+        state.placed1 = {};
+        buildBoardShell('playGrid1', state.placed1, true, 1);
+      } else {
+        state.placed2 = {};
+        buildBoardShell('playGrid2', state.placed2, true, 2);
+      }
+    }
+
+    function countWrongPieces(placed, target) {
+      let wrong = 0;
+      for (const [index, pieceId] of Object.entries(target)) {
+        if (placed[index] !== pieceId) wrong++;
+      }
+      return wrong;
+    }
+
+    function updateRound1TimerDisplay() {
+      const total = state.elapsed1Raw + state.penalty1;
+      document.getElementById('timer1').textContent = total.toFixed(1);
+      document.getElementById('penalty1').textContent = state.penalty1;
+    }
+
+    function updateRound2TimerDisplay() {
+      const total = state.elapsed2Raw + state.penalty2;
+      document.getElementById('timer2').textContent = total.toFixed(1);
+      document.getElementById('penalty2').textContent = state.penalty2;
+    }
+
+    function startTimer(round) {
+      stopTimer(round);
+      const start = performance.now();
+
+      if (round === 1) {
+        state.startTime1 = start;
+        state.timer1 = setInterval(() => {
+          if (state.round1PausedForPeek) return;
+          state.elapsed1Raw = (performance.now() - state.startTime1) / 1000;
+          updateRound1TimerDisplay();
+        }, 100);
+      } else {
+        state.startTime2 = start;
+        state.timer2 = setInterval(() => {
+          state.elapsed2Raw = (performance.now() - state.startTime2) / 1000;
+          updateRound2TimerDisplay();
+        }, 100);
+      }
+    }
+
+    function stopTimer(round) {
+      if (round === 1 && state.timer1) {
+        clearInterval(state.timer1);
+        state.timer1 = null;
+      }
+      if (round === 2 && state.timer2) {
+        clearInterval(state.timer2);
+        state.timer2 = null;
+      }
+    }
+
+    function getRound1FinalTime() { return state.elapsed1Raw + state.penalty1; }
+    function getRound2FinalTime() { return state.elapsed2Raw + state.penalty2; }
+
+    function calculateAccuracy(placed, target) {
+      let correct = 0;
+      const total = Object.keys(target).length;
+      for (const [index, pieceId] of Object.entries(target)) {
+        if (placed[index] === pieceId) correct++;
+      }
+      return Math.round((correct / total) * 100);
+    }
+
+    function markResultsOnBoard(containerId, placed, target) {
+      const container = document.getElementById(containerId);
+      Array.from(container.querySelectorAll('.cell')).forEach(cell => {
+        const i = Number(cell.dataset.index);
+        const targetPiece = target[i];
+        if (!targetPiece) return;
+        if (placed[i] === targetPiece) cell.classList.add('correct');
+        else cell.classList.add('incorrect');
+      });
+    }
+
+    function buildInstructionList() {
+      const list = document.getElementById('instructionList');
+      list.innerHTML = '';
+      const entries = Object.entries(state.round2Target).sort((a, b) => Number(a[0]) - Number(b[0]));
+      entries.forEach(([index, pieceId]) => {
+        const li = document.createElement('li');
+        const piece = getPieceById(pieceId);
+        li.innerHTML = `<span class="instruction-piece">${smallShapeSVG(piece)} <span>${piece.name}</span></span> = <strong>${indexToCoord(Number(index))}</strong>`;
+        list.appendChild(li);
+      });
+    }
+
+    function computeScore(accuracy2, time2, accuracy1, time1) {
+      const timeScore = Math.max(0, 180 - Math.round(time2 * 4));
+      const improvementAccuracy = Math.max(0, accuracy2 - accuracy1);
+      const improvementTime = Math.max(0, Math.round((time1 - time2) * 3));
+      return Math.round((accuracy2 * 10) + timeScore + improvementAccuracy + improvementTime);
+    }
+
+    async function addScore(entry) {
+      const payload = {
+        player_name: entry.player_name,
+        time1: Number(entry.time1),
+        time2: Number(entry.time2),
+        accuracy1: Number(entry.accuracy1),
+        accuracy2: Number(entry.accuracy2),
+        wrong1: Number(entry.wrong1),
+        wrong2: Number(entry.wrong2),
+        penalty1: Number(entry.penalty1),
+        penalty2: Number(entry.penalty2),
+        score: Number(entry.score)
+      };
+
+      const { error } = await supabaseClient.from('attempts').insert([payload]);
+      if (error) {
+        console.error('Insert failed:', error);
+        throw error;
+      }
+    }
+
+    async function loadTopScores() {
+      const { data, error } = await supabaseClient
+        .from('attempts')
+        .select('*')
+        .order('accuracy2', { ascending: false })
+        .order('time2', { ascending: true })
+        .order('score', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Leaderboard load failed:', error);
+        return [];
+      }
+      return data || [];
+    }
+
+    async function loadAllScoresForStats() {
+      const { data, error } = await supabaseClient
+        .from('attempts')
+        .select('player_name,time1,time2,accuracy1,accuracy2,wrong1,wrong2,penalty1,penalty2,score');
+
+      if (error) {
+        console.error('Stats load failed:', error);
+        return [];
+      }
+      return data || [];
+    }
+
+    function renderLeaderboardTableHtml(top) {
+      if (!top.length) {
+        return `<div class="empty-state">No company attempts yet.</div>`;
+      }
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Guided Time</th>
+              <th>Guided Accuracy</th>
+              <th>Memory Time</th>
+              <th>Memory Accuracy</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      top.forEach((entry, idx) => {
+        html += `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${entry.player_name || 'Anonymous'}</td>
+            <td>${Number(entry.time2).toFixed(1)}s</td>
+            <td>${entry.accuracy2}%</td>
+            <td>${Number(entry.time1).toFixed(1)}s</td>
+            <td>${entry.accuracy1}%</td>
+            <td>${entry.score}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function renderStatsInto(prefix, all) {
+      if (!all.length) {
+        document.getElementById(`${prefix}AvgTime1`).textContent = '--';
+        document.getElementById(`${prefix}AvgAcc1`).textContent = '--';
+        document.getElementById(`${prefix}AvgTime2`).textContent = '--';
+        document.getElementById(`${prefix}AvgAcc2`).textContent = '--';
+        return;
+      }
+
+      const avgTime1 = all.reduce((sum, s) => sum + Number(s.time1), 0) / all.length;
+      const avgTime2 = all.reduce((sum, s) => sum + Number(s.time2), 0) / all.length;
+      const avgAcc1 = all.reduce((sum, s) => sum + Number(s.accuracy1), 0) / all.length;
+      const avgAcc2 = all.reduce((sum, s) => sum + Number(s.accuracy2), 0) / all.length;
+
+      document.getElementById(`${prefix}AvgTime1`).textContent = `${avgTime1.toFixed(1)}s`;
+      document.getElementById(`${prefix}AvgAcc1`).textContent = `${Math.round(avgAcc1)}%`;
+      document.getElementById(`${prefix}AvgTime2`).textContent = `${avgTime2.toFixed(1)}s`;
+      document.getElementById(`${prefix}AvgAcc2`).textContent = `${Math.round(avgAcc2)}%`;
+    }
+
+    async function refreshCompanyDataEverywhere() {
+      const [top, all] = await Promise.all([loadTopScores(), loadAllScoresForStats()]);
+
+      renderStatsInto('start', all);
+      renderStatsInto('results', all);
+
+      document.getElementById('leaderboardWrapStart').innerHTML = renderLeaderboardTableHtml(top);
+      document.getElementById('leaderboardWrapResults').innerHTML = renderLeaderboardTableHtml(top);
+    }
+
+    function prepareNewPuzzleSet() {
+      generateRoundPair();
+      state.selectedPiece1 = null;
+      state.selectedPiece2 = null;
+      state.placed1 = {};
+      state.placed2 = {};
+      state.elapsed1Raw = 0;
+      state.elapsed2Raw = 0;
+      state.penalty1 = 0;
+      state.penalty2 = 0;
+      state.accuracy1 = 0;
+      state.accuracy2 = 0;
+      state.wrong1 = 0;
+      state.wrong2 = 0;
+      state.lastScore = 0;
+      state.round1PausedForPeek = false;
+      state.scoreSubmitted = false;
+      document.getElementById('timer1').textContent = '0.0';
+      document.getElementById('timer2').textContent = '0.0';
+      document.getElementById('penalty1').textContent = '0';
+      document.getElementById('penalty2').textContent = '0';
+      document.getElementById('playerNameInput').value = '';
+      document.getElementById('submitStatus').textContent = 'Your score has not been submitted yet.';
+      document.getElementById('submitLeaderboardBtn').disabled = false;
+    }
+
+    function beginPreview1() {
+      prepareNewPuzzleSet();
+      showScreen('preview1');
+      buildBoardShell('previewGrid1', {}, false, 1, state.round1Target, true);
+
+      let count = PREVIEW_SECONDS;
+      const el = document.getElementById('countdown1');
+      el.textContent = count;
+
+      const interval = setInterval(() => {
+        count--;
+        el.textContent = count;
+        if (count <= 0) {
+          clearInterval(interval);
+          beginRound1();
+        }
+      }, 1000);
+    }
+
+    function beginRound1() {
+      showScreen('round1');
+      buildBoardShell('playGrid1', state.placed1, true, 1);
+      renderPalette('palette1', 1);
+      startTimer(1);
+      updateRound1TimerDisplay();
+    }
+
+    function openPeek() {
+      state.penalty1 += LOOK_PENALTY_SECONDS;
+      updateRound1TimerDisplay();
+      state.round1PausedForPeek = true;
+      showScreen('peek');
+      buildBoardShell('peekGrid', {}, false, 1, state.round1Target, true);
+    }
+
+    function returnFromPeek() {
+      state.round1PausedForPeek = false;
+      state.startTime1 = performance.now() - (state.elapsed1Raw * 1000);
+      showScreen('round1');
+      buildBoardShell('playGrid1', state.placed1, true, 1);
+      renderPalette('palette1', 1);
+      refreshPaletteSelection(1);
+      updateRound1TimerDisplay();
+    }
+
+    function submitRound1() {
+      stopTimer(1);
+      state.wrong1 = countWrongPieces(state.placed1, state.round1Target);
+      state.penalty1 += state.wrong1 * WRONG_PIECE_PENALTY_SECONDS;
+      state.accuracy1 = calculateAccuracy(state.placed1, state.round1Target);
+      updateRound1TimerDisplay();
+      markResultsOnBoard('playGrid1', state.placed1, state.round1Target);
+      setTimeout(() => showScreen('preview2'), 1400);
+    }
+
+    function beginRound2() {
+      showScreen('round2');
+      buildBoardShell('playGrid2', state.placed2, true, 2);
+      renderPalette('palette2', 2);
+      buildInstructionList();
+      startTimer(2);
+      updateRound2TimerDisplay();
+    }
+
+    function finishRound2Review() {
+      stopTimer(2);
+      state.wrong2 = countWrongPieces(state.placed2, state.round2Target);
+      state.penalty2 += state.wrong2 * WRONG_PIECE_PENALTY_SECONDS;
+      state.accuracy2 = calculateAccuracy(state.placed2, state.round2Target);
+      updateRound2TimerDisplay();
+      markResultsOnBoard('playGrid2', state.placed2, state.round2Target);
+
+      const finalTime1 = getRound1FinalTime();
+      const finalTime2 = getRound2FinalTime();
+      state.lastScore = computeScore(state.accuracy2, finalTime2, state.accuracy1, finalTime1);
+
+      setTimeout(() => showResults(), 1400);
+    }
+
+    async function showResults() {
+      showScreen('results');
+      const finalRound1Time = getRound1FinalTime();
+      const finalRound2Time = getRound2FinalTime();
+
+      document.getElementById('resTime1').textContent = `${finalRound1Time.toFixed(1)}s`;
+      document.getElementById('resAccuracy1').textContent = `${state.accuracy1}%`;
+      document.getElementById('resTime2').textContent = `${finalRound2Time.toFixed(1)}s`;
+      document.getElementById('resAccuracy2').textContent = `${state.accuracy2}%`;
+
+      const improvementTime = finalRound1Time - finalRound2Time;
+      const improvementAcc = state.accuracy2 - state.accuracy1;
+
+      document.getElementById('resImprovementTime').textContent = `${improvementTime >= 0 ? '+' : ''}${improvementTime.toFixed(1)}s`;
+      document.getElementById('resImprovementAccuracy').textContent = `${improvementAcc >= 0 ? '+' : ''}${improvementAcc}%`;
+      document.getElementById('resScore').textContent = state.lastScore;
+      document.getElementById('resPenaltySummary').textContent = `R1: ${state.penalty1}s | R2: ${state.penalty2}s`;
+
+      const takeaway = document.getElementById('takeawayText');
+      let message = '<strong>Takeaway:</strong> Structured instructions help reduce ambiguity when items look similar and decisions have to be made quickly.';
+      if (improvementAcc > 0 || improvementTime > 0) {
+        const parts = [];
+        if (improvementTime > 0) parts.push(`<strong>${improvementTime.toFixed(1)}s faster</strong>`);
+        if (improvementAcc > 0) parts.push(`<strong>${improvementAcc}% more accurate</strong>`);
+        message += ' In this attempt, the guided build was ' + parts.join(' and ') + '.';
+      } else {
+        message += ' Even when the improvement is small, instructions reduce dependence on memory and help standardize execution.';
+      }
+      if (state.penalty1 > 0 || state.penalty2 > 0) {
+        message += ` Wrong-piece penalties were applied at <strong>${WRONG_PIECE_PENALTY_SECONDS}s per incorrect piece</strong>, and solution checks in Round 1 added <strong>${LOOK_PENALTY_SECONDS}s each time</strong>.`;
+      }
+      takeaway.innerHTML = message;
+
+      await refreshCompanyDataEverywhere();
+    }
+
+    async function submitLeaderboardScore() {
+      if (state.scoreSubmitted) return;
+
+      const input = document.getElementById('playerNameInput');
+      const submitBtn = document.getElementById('submitLeaderboardBtn');
+      const status = document.getElementById('submitStatus');
+
+      let playerName = input.value.trim();
+      if (!playerName) {
+        status.textContent = 'Please enter your name or initials before submitting.';
+        return;
+      }
+
+      playerName = playerName.slice(0, 20);
+
+      submitBtn.disabled = true;
+      status.textContent = 'Submitting score...';
+
+      try {
+        await addScore({
+          player_name: playerName,
+          time1: getRound1FinalTime(),
+          time2: getRound2FinalTime(),
+          accuracy1: state.accuracy1,
+          accuracy2: state.accuracy2,
+          wrong1: state.wrong1,
+          wrong2: state.wrong2,
+          penalty1: state.penalty1,
+          penalty2: state.penalty2,
+          score: state.lastScore
+        });
+
+        state.scoreSubmitted = true;
+        status.textContent = 'Score submitted successfully.';
+        submitBtn.disabled = true;
+        await refreshCompanyDataEverywhere();
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Could not submit score. Check Supabase table/policies and try again.';
+        submitBtn.disabled = false;
+      }
+    }
+
+    function backHome() {
+      stopTimer(1);
+      stopTimer(2);
+      showScreen('start');
+    }
+
+    document.getElementById('startBtn').addEventListener('click', beginPreview1);
+    document.getElementById('refreshLeaderboardBtn').addEventListener('click', refreshCompanyDataEverywhere);
+    document.getElementById('clear1Btn').addEventListener('click', () => clearRound(1));
+    document.getElementById('clear2Btn').addEventListener('click', () => clearRound(2));
+    document.getElementById('deselect1Btn').addEventListener('click', () => deselectPiece(1));
+    document.getElementById('deselect2Btn').addEventListener('click', () => deselectPiece(2));
+    document.getElementById('peekBtn').addEventListener('click', openPeek);
+    document.getElementById('returnFromPeekBtn').addEventListener('click', returnFromPeek);
+    document.getElementById('submit1Btn').addEventListener('click', submitRound1);
+    document.getElementById('beginRound2Btn').addEventListener('click', beginRound2);
+    document.getElementById('submit2Btn').addEventListener('click', finishRound2Review);
+    document.getElementById('submitLeaderboardBtn').addEventListener('click', submitLeaderboardScore);
+    document.getElementById('restartBtn').addEventListener('click', beginPreview1);
+    document.getElementById('backHomeBtn').addEventListener('click', backHome);
+
+    (async function init() {
+      await refreshCompanyDataEverywhere();
+      showScreen('start');
+    })();
+  </script>
+</body>
+</html>
